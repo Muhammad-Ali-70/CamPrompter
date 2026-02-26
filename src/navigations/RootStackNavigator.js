@@ -1,6 +1,8 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import SplashScreen from '../screens/Onboarding/SplashScreen';
+import HomeScreen from '../screens/Home/HomeScreen';
+import TabNavigator from './TabNavigator';
 
 const Stack = createStackNavigator();
 
@@ -11,6 +13,8 @@ const RootStackNavigator = () => {
       screenOptions={{ headerShown: false }}
     >
       <Stack.Screen name="SplashScreen" component={SplashScreen} />
+      <Stack.Screen name="HomeScreen" component={HomeScreen} />
+      <Stack.Screen name="TabNavigator" component={TabNavigator} />
     </Stack.Navigator>
   );
 };

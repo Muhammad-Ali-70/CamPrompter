@@ -1,24 +1,11 @@
-// constants/colors.js
-
 export const colors = {
-  primary900: '#3C295A', // Deep Violet
-  primary700: '#4D369C', // Brand Purple
-  primary500: '#8E5FE0', // CTA Purple
+  backgroundPrimary: '#222831', // Dark
+  backgroundSecondary: '#393E46', // Dark2
+  surface: '#EEEEEE', // Surface White
 
-  accentOrange: '#F37B2A',
-  accentPink: '#E064AC',
-  accentLavender: '#AD84EB',
+  primary: '#FF9F66',
 
-  surfaceWhite: '#FDFDFE',
-  surfaceOffWhite: '#F5F4FA',
-
-  borderLight: '#EAE8F2',
-
-  textPrimary: '#2D2C33',
-  textSecondary: '#7B7B89',
-  textMuted: '#9A9AA8',
-
-  mainBackground: '#ffffff',
+  textPrimary: '#EEEEEE', // for dark backgrounds
+  textSecondary: '#CCCCCC', // slightly muted on dark backgrounds
+  textOnLight: '#222831', // for light surfaces
 };
-
-export default colors;

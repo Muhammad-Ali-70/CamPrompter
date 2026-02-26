@@ -6,7 +6,7 @@ import { colors } from './colors';
 import fonts from './fonts'; // Changed from { FONTS }
 import { wp } from './responsive';
 
-export const borderRadiusPrimary = 8;
+export const borderRadiusPrimary = 10;
 export const borderRadiusSecondary = 5;
 export const iconSizePrimary = wp(4);
 
@@ -22,11 +22,11 @@ export const TEXT_TYPES = {
   h1: RFValue(28), // Large titles
   h2: RFValue(24), // Section headings
   h3: RFValue(22), // Subheadings
-  h4: RFValue(20), // Smaller headings
-  h5: RFValue(18), // Minor headings
-  body: RFValue(16), // Default body text
-  bodySmall: RFValue(14), // Small body text
-  bodyXs: RFValue(12), // Extra small text
+  h4: RFValue(18), // Smaller headings
+  h5: RFValue(16), // Minor headings
+  body: RFValue(14), // Default body text
+  bodySmall: RFValue(13), // Small body text
+  bodyXs: RFValue(11), // Extra small text
   caption: RFValue(10), // Captions or metadata
 };
 

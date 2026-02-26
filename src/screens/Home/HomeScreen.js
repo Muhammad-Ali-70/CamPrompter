@@ -1,0 +1,74 @@
+import React from 'react';
+import { View, ScrollView, StyleSheet } from 'react-native';
+import { colors } from '../../constants/colors';
+import { hp, wp } from '../../constants/responsive';
+
+import HomeHeader from '../../components/HomeScreen/HomeHeader';
+import RecentScriptsList from '../../components/HomeScreen/RecentScriptsList';
+import FAB from '../../components/Buttons/FAB';
+import PrimaryButton from '../../components/Buttons/PrimaryButton';
+import MyScriptsList from '../../components/HomeScreen/MyScriptsList';
+
+const HomeScreen = () => {
+  const handleSearch = () => {
+    console.log('Search pressed');
+  };
+
+  const handleCreateScript = () => {
+    console.log('Create New Script pressed');
+  };
+
+  const handleScriptPress = script => {
+    console.log('Script pressed:', script.title);
+  };
+
+  return (
+    <View style={styles.screen}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <HomeHeader onSearchPress={handleSearch} />
+
+        <RecentScriptsList
+          onViewAll={() => console.log('View all recent')}
+          onScriptPress={handleScriptPress}
+        />
+
+        <View style={styles.ctaWrapper}>
+          <PrimaryButton
+            label="Create New Script"
+            iconName="CirclePlus"
+            onPress={handleCreateScript}
+            variant="outline"
+          />
+        </View>
+
+        <MyScriptsList onScriptPress={handleScriptPress} />
+      </ScrollView>
+
+      <FAB onPress={() => console.log('FAB pressed')} />
+    </View>
+  );
+};
+
+export default HomeScreen;
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  scrollView: {
+    backgroundColor: colors.backgroundPrimary,
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: hp(10),
+  },
+  ctaWrapper: {
+    paddingHorizontal: wp(4),
+    marginBottom: hp(3),
+    marginTop: hp(0.5),
+  },
+});
