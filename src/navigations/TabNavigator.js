@@ -7,11 +7,11 @@ import { Label } from '../constants/globalstyle';
 import { wp, hp } from '../constants/responsive';
 import { RFValue } from 'react-native-responsive-fontsize';
 
-import HomeScreen from '../screens/Home/HomeScreen';
 // import ScriptsScreen from '../screens/Scripts/ScriptsScreen';
 // import FoldersScreen from '../screens/Folders/FoldersScreen';
 // import SettingsScreen from '../screens/Settings/SettingsScreen';
 import Dummy from '../screens/Dummy';
+import HomeStack from './HomeStack';
 
 const Tab = createBottomTabNavigator();
 
@@ -52,7 +52,7 @@ const TabNavigator = () => {
         ),
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Home" component={HomeStack} />
       <Tab.Screen name="Scripts" component={Dummy} />
       <Tab.Screen name="Folders" component={Dummy} />
       <Tab.Screen name="Settings" component={Dummy} />
@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: colors.backgroundSecondary,
     borderTopWidth: 0,
-    height: hp(7),
+    height: hp(7.5),
     paddingBottom: hp(0),
     paddingTop: hp(0.5),
   },

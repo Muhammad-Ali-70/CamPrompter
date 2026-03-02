@@ -9,7 +9,6 @@ import { wp, hp } from '../../constants/responsive';
 import { RFValue } from 'react-native-responsive-fontsize';
 import Logo from '../UI/Logo';
 import IconButton from '../Buttons/IconButton';
-import { Camera } from 'lucide-react-native';
 
 const HomeHeader = ({ onSearchPress }) => {
   return (

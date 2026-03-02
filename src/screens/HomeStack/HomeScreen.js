@@ -8,13 +8,18 @@ import RecentScriptsList from '../../components/HomeScreen/RecentScriptsList';
 import FAB from '../../components/Buttons/FAB';
 import PrimaryButton from '../../components/Buttons/PrimaryButton';
 import MyScriptsList from '../../components/HomeScreen/MyScriptsList';
+import { useNavigation } from '@react-navigation/native';
+import { CirclePlus } from 'lucide-react-native';
 
 const HomeScreen = () => {
+  const navigation = useNavigation();
+
   const handleSearch = () => {
     console.log('Search pressed');
   };
 
   const handleCreateScript = () => {
+    navigation.navigate('ScriptEditorScreen');
     console.log('Create New Script pressed');
   };
 
@@ -39,7 +44,7 @@ const HomeScreen = () => {
         <View style={styles.ctaWrapper}>
           <PrimaryButton
             label="Create New Script"
-            iconName="CirclePlus"
+            LucideIcon={CirclePlus}
             onPress={handleCreateScript}
             variant="outline"
           />

@@ -29,7 +29,7 @@ const ScriptListItem = ({
       {/* Middle: Title + Meta */}
       <View style={styles.textBlock}>
         <Label
-          type="body"
+          type="bodySmall"
           weight="semiBold"
           color="textPrimary"
           numberOfLines={1}
@@ -45,7 +45,7 @@ const ScriptListItem = ({
       {/* Right: Duration */}
       {duration && (
         <View style={styles.durationBlock}>
-          <Label type="body" weight="bold" color="textPrimary">
+          <Label type="bodySmall" weight="bold" color="textPrimary">
             {duration}
           </Label>
           <Label type="caption" color="textSecondary">
@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.backgroundSecondary,
     borderRadius: borderRadiusPrimary,
-    paddingVertical: hp(1.8),
+    paddingVertical: hp(1.2),
     paddingHorizontal: wp(4),
     marginBottom: hp(1.2),
     gap: wp(3),

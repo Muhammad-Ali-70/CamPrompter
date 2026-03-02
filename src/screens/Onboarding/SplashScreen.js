@@ -11,10 +11,10 @@ const SplashScreen = () => {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigation.replace('TabNavigator'); // replace so user can't go back to splash
-    }, 2000); // 2 seconds
+      navigation.replace('TabNavigator');
+    }, 2000);
 
-    return () => clearTimeout(timer); // cleanup on unmount
+    return () => clearTimeout(timer);
   }, [navigation]);
 
   return (
