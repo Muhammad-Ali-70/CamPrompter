@@ -32,7 +32,7 @@ const ScriptEditorScreen = ({ route }) => {
 
   const handleSaveDraft = () => {
     // TODO: persist draft
-    console.log('Save Draft:', { title, content });
+    console.log('Save Draft:  ', { title, content });
     navigation.goBack();
   };
 
