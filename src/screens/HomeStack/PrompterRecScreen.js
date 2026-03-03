@@ -130,6 +130,10 @@ const PrompterRecScreen = () => {
     console.log('Script toggle');
   }, []);
 
+  const handleDone = useCallback(() => {
+    navigation.navigate('VideoPreviewScreen');
+  }, []);
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <View style={styles.screen}>
@@ -165,6 +169,7 @@ const PrompterRecScreen = () => {
           onRecord={handleRecord}
           onFlipCamera={handleFlipCamera}
           onScript={handleScript}
+          onDone={handleDone}
         />
       </View>
     </View>

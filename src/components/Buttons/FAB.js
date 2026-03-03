@@ -26,7 +26,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: wp(5),
     right: wp(4),
-    shadowColor: colors.accent,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,

@@ -29,6 +29,7 @@ const RecordingControls = ({
   onRecord,
   onFlipCamera,
   onScript,
+  onDone,
 }) => {
   return (
     <View style={styles.container}>
@@ -46,13 +47,22 @@ const RecordingControls = ({
 
       {/* Script toggle */}
 
-      <IconButton
+      {/* <IconButton
         iconName="FileText"
         iconSize={RFValue(15)}
         iconColor={colors.textPrimary}
         backgroundColor={colors.backgroundSecondary}
         size={wp(12)}
         onPress={onScript}
+      /> */}
+
+      <IconButton
+        iconName="Send"
+        iconSize={RFValue(15)}
+        iconColor={colors.textPrimary}
+        backgroundColor={colors.backgroundSecondary}
+        size={wp(12)}
+        onPress={onDone}
       />
     </View>
   );

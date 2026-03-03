@@ -12,6 +12,8 @@ import { RFValue } from 'react-native-responsive-fontsize';
 // import SettingsScreen from '../screens/Settings/SettingsScreen';
 import Dummy from '../screens/Dummy';
 import HomeStack from './HomeStack';
+import ScriptStack from './ScriptStack';
+import FolderStack from './FolderStack';
 
 const Tab = createBottomTabNavigator();
 
@@ -53,8 +55,8 @@ const TabNavigator = () => {
       })}
     >
       <Tab.Screen name="Home" component={HomeStack} />
-      <Tab.Screen name="Scripts" component={Dummy} />
-      <Tab.Screen name="Folders" component={Dummy} />
+      <Tab.Screen name="Scripts" component={ScriptStack} />
+      <Tab.Screen name="Folders" component={FolderStack} />
       <Tab.Screen name="Settings" component={Dummy} />
     </Tab.Navigator>
   );
@@ -64,11 +66,21 @@ export default TabNavigator;
 
 const styles = StyleSheet.create({
   tabBar: {
+    position: 'absolute',
+    left: wp(1),
+    right: wp(1),
+    bottom: wp(-1),
+
     backgroundColor: colors.backgroundSecondary,
-    borderTopWidth: 0,
+
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+
     height: hp(7.5),
-    paddingBottom: hp(0),
-    paddingTop: hp(0.5),
+    paddingTop: hp(0.8),
+    paddingBottom: hp(0.5),
+
+    borderTopWidth: 0,
   },
   tabIconContainer: {
     alignItems: 'center',
