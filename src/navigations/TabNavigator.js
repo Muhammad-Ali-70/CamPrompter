@@ -14,6 +14,7 @@ import Dummy from '../screens/Dummy';
 import HomeStack from './HomeStack';
 import ScriptStack from './ScriptStack';
 import FolderStack from './FolderStack';
+import SettingsScreen from '../screens/Settings/SettingsScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -57,7 +58,7 @@ const TabNavigator = () => {
       <Tab.Screen name="Home" component={HomeStack} />
       <Tab.Screen name="Scripts" component={ScriptStack} />
       <Tab.Screen name="Folders" component={FolderStack} />
-      <Tab.Screen name="Settings" component={Dummy} />
+      <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
   );
 };

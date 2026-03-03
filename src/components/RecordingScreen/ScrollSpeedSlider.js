@@ -36,7 +36,7 @@ const ScrollSpeedSlider = ({ value = 0.3, onChange }) => {
           maximumValue={1}
           value={value}
           onValueChange={onChange}
-          minimumTrackTintColor={colors.accent}
+          minimumTrackTintColor={colors.primary}
           maximumTrackTintColor={colors.backgroundSecondary}
           thumbTintColor={colors.textPrimary}
         />

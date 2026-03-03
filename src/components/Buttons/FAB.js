@@ -12,7 +12,7 @@ const FAB = ({ onPress, iconName = 'Video' }) => {
       iconSize={RFValue(24)}
       iconColor={colors.surface}
       backgroundColor={colors.primary}
-      size={wp(15)}
+      size={wp(14)}
       style={styles.fab}
       onPress={onPress}
     />
@@ -24,7 +24,7 @@ export default FAB;
 const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
-    bottom: wp(5),
+    bottom: wp(18),
     right: wp(4),
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
