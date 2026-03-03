@@ -39,16 +39,13 @@ const FontSizeModal = ({ visible, currentSize, onSave, onClose }) => {
       animationType="slide"
       onRequestClose={onClose}
     >
-      {/* Backdrop */}
       <TouchableOpacity
         style={styles.backdrop}
         activeOpacity={1}
         onPress={onClose}
       />
 
-      {/* Sheet */}
       <View style={styles.sheet}>
-        {/* Handle */}
         <View style={styles.handle} />
 
         <Label
