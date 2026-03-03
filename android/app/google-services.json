@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1090597245509",
+    "project_id": "camprompter-c9fb7",
+    "storage_bucket": "camprompter-c9fb7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1090597245509:android:4a310fb1ed9ba75276092c",
+        "android_client_info": {
+          "package_name": "com.camprompter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD86osCjbGbCcSsj1kmWqfvIISx8UH41R0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

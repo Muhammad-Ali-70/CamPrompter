@@ -1,41 +1,29 @@
 /**
  * RecentScriptsList.js
- * Horizontal scrollable list of RecentScriptCard items.
+ * Shows the 5 most recent scripts from Firestore.
  */
 import React from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View, ActivityIndicator } from 'react-native';
 import { hp, wp } from '../../constants/responsive';
+import { colors } from '../../constants/colors';
 import SectionHeader from './SectionHeader';
 import RecentScriptCard from './RecentScriptCard';
+import useScripts from '../../hooks/useScripts'; // ← default import, no curly braces
 
-const RECENT_SCRIPTS = [
-  {
-    id: '1',
-    title: 'Product Launch Keynote',
-    editedLabel: 'Edited 2m ago',
-    readTime: '5 min read',
-    iconName: 'Mic',
-    status: 'Ready',
-  },
-  {
-    id: '2',
-    title: 'Instagram Reel Script',
-    editedLabel: 'Edited 2h ago',
-    readTime: '2 min read',
-    iconName: 'Video',
-    status: 'Draft',
-  },
-  {
-    id: '3',
-    title: 'Podcast Intro',
-    editedLabel: 'Edited 1d ago',
-    readTime: '1 min read',
-    iconName: 'Podcast',
-    status: 'Review',
-  },
-];
+const formatEdited = ts => {
+  if (!ts) return '';
+  const date = ts.toDate ? ts.toDate() : new Date(ts);
+  const diff = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (diff < 60) return 'Just now';
+  if (diff < 3600) return `Edited ${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `Edited ${Math.floor(diff / 3600)}h ago`;
+  return `Edited ${Math.floor(diff / 86400)}d ago`;
+};
 
 const RecentScriptsList = ({ onViewAll, onScriptPress }) => {
+  const { scripts, loading } = useScripts();
+  const recent = scripts.slice(0, 5); // just take first 5
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -45,19 +33,32 @@ const RecentScriptsList = ({ onViewAll, onScriptPress }) => {
           onActionPress={onViewAll}
         />
       </View>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {RECENT_SCRIPTS.map(script => (
-          <RecentScriptCard
-            key={script.id}
-            {...script}
-            onPress={() => onScriptPress && onScriptPress(script)}
-          />
-        ))}
-      </ScrollView>
+
+      {loading ? (
+        <ActivityIndicator color={colors.accent} style={styles.loader} />
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {recent.map(script => (
+            <RecentScriptCard
+              key={script.id}
+              title={script.title}
+              editedLabel={formatEdited(script.updatedAt)}
+              readTime={
+                script.wordCount
+                  ? `${Math.ceil(script.wordCount / 130)} min read`
+                  : ''
+              }
+              iconName={script.iconName || 'Mic'}
+              status={script.status}
+              onPress={() => onScriptPress && onScriptPress(script)}
+            />
+          ))}
+        </ScrollView>
+      )}
     </View>
   );
 };
@@ -65,14 +66,8 @@ const RecentScriptsList = ({ onViewAll, onScriptPress }) => {
 export default RecentScriptsList;
 
 const styles = StyleSheet.create({
-  container: {
-    marginBottom: hp(2.5),
-  },
-  header: {
-    paddingHorizontal: wp(4),
-  },
-  scrollContent: {
-    paddingHorizontal: wp(4),
-    paddingBottom: hp(0.5),
-  },
+  container: { marginBottom: hp(2.5) },
+  header: { paddingHorizontal: wp(4) },
+  scrollContent: { paddingHorizontal: wp(4), paddingBottom: hp(0.5) },
+  loader: { marginTop: hp(2) },
 });

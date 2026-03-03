@@ -1,3 +1,7 @@
+/**
+ * ScriptEditorScreen.js
+ * Create or edit a script. Wired to Firestore via useScripts hook.
+ */
 import React, { useState } from 'react';
 import {
   View,
@@ -5,39 +9,78 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-
+import { Video, Save } from 'lucide-react-native';
 import { colors } from '../../constants/colors';
 import { wp, hp } from '../../constants/responsive';
 import ScreenHeader from '../../components/UI/ScreenHeader';
 import ScriptTitleInput from '../../components/Inputs/ScriptTitleInput';
 import ScriptContentInput from '../../components/Inputs/ScriptContentInput';
 import PrimaryButton from '../../components/Buttons/PrimaryButton';
-
-import { Video, Save } from 'lucide-react-native';
+import useScripts from '../../hooks/useScripts';
 
 const ScriptEditorScreen = ({ route }) => {
   const navigation = useNavigation();
-  const isEditing = route?.params?.script != null;
+  const { addScript, editScript } = useScripts();
 
-  const [title, setTitle] = useState(route?.params?.script?.title ?? '');
-  const [content, setContent] = useState(route?.params?.script?.content ?? '');
+  const existingScript = route?.params?.script ?? null;
+  const isEditing = existingScript != null;
 
-  const handleStartRecording = () => {
-    navigation.navigate('PrompterRecScreen');
-    // TODO: navigate to recording screen
-    console.log('Start Recording:', { title, content });
+  const [title, setTitle] = useState(existingScript?.title ?? '');
+  const [content, setContent] = useState(existingScript?.content ?? '');
+  const [saving, setSaving] = useState(false);
+
+  const handleSaveDraft = async () => {
+    if (!title.trim()) {
+      Alert.alert('Title required', 'Please add a title before saving.');
+      return;
+    }
+    try {
+      setSaving(true);
+      if (isEditing) {
+        await editScript(existingScript.id, {
+          title,
+          content,
+          status: 'draft',
+        });
+      } else {
+        await addScript({ title, content, status: 'draft' });
+      }
+      navigation.goBack();
+    } catch (e) {
+      console.log(e);
+
+      Alert.alert('Error', 'Could not save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleSaveDraft = () => {
-    // TODO: persist draft
-    console.log('Save Draft:  ', { title, content });
-    navigation.goBack();
-  };
-
-  const handleSettings = () => {
-    console.log('Settings pressed');
+  const handleStartRecording = async () => {
+    if (!title.trim() || !content.trim()) {
+      Alert.alert(
+        'Script incomplete',
+        'Please add a title and content before recording.',
+      );
+      return;
+    }
+    try {
+      setSaving(true);
+      let scriptId = existingScript?.id;
+      if (isEditing) {
+        await update(scriptId, { title, content, status: 'ready' });
+      } else {
+        const ref = await create({ title, content, status: 'ready' });
+        scriptId = ref.id;
+      }
+      navigation.navigate('PrompterRecScreen', { scriptId, title, content });
+    } catch (e) {
+      Alert.alert('Error', 'Could not save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -51,9 +94,8 @@ const ScriptEditorScreen = ({ route }) => {
           title={isEditing ? 'Edit Script' : 'New Script'}
           onBack={() => navigation.goBack()}
           rightLabel="Settings"
-          onRightPress={handleSettings}
+          onRightPress={() => {}}
         />
-
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
@@ -63,24 +105,23 @@ const ScriptEditorScreen = ({ route }) => {
           <ScriptTitleInput value={title} onChangeText={setTitle} />
           <ScriptContentInput value={content} onChangeText={setContent} />
         </ScrollView>
-
-        {/* Sticky bottom actions */}
         <View style={styles.bottomBar}>
           <PrimaryButton
-            label="Start Recording"
-            LucideIcon={Video} // Pass the component, not a string
+            label={saving ? 'Saving...' : 'Start Recording'}
+            LucideIcon={Video}
             variant="solid"
             onPress={handleStartRecording}
-            style={styles.primaryBtn}
+            disabled={saving}
+            style={styles.btn}
           />
-
-          {/* <PrimaryButton
-            label="Save Draft"
-            LucideIcon={Save} // Pass the component, not a string
+          <PrimaryButton
+            label={saving ? 'Saving...' : 'Save Draft'}
+            LucideIcon={Save}
             variant="secondary"
             onPress={handleSaveDraft}
-            style={styles.secondaryBtn}
-          /> */}
+            disabled={saving}
+            style={styles.btn}
+          />
         </View>
       </KeyboardAvoidingView>
     </View>
@@ -90,16 +131,9 @@ const ScriptEditorScreen = ({ route }) => {
 export default ScriptEditorScreen;
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.backgroundPrimary,
-  },
-  flex: {
-    flex: 1,
-  },
-  scroll: {
-    flex: 1,
-  },
+  safeArea: { flex: 1, backgroundColor: colors.backgroundPrimary },
+  flex: { flex: 1 },
+  scroll: { flex: 1 },
   scrollContent: {
     paddingHorizontal: wp(4),
     paddingTop: hp(2.5),
@@ -107,17 +141,12 @@ const styles = StyleSheet.create({
   },
   bottomBar: {
     paddingHorizontal: wp(4),
-    paddingTop: hp(1.5),
-    paddingBottom: hp(2),
+    paddingTop: hp(1),
+    paddingBottom: hp(7),
     backgroundColor: colors.backgroundPrimary,
     gap: hp(1.2),
     borderTopWidth: 1,
     borderTopColor: colors.backgroundSecondary,
   },
-  primaryBtn: {
-    width: '100%',
-  },
-  secondaryBtn: {
-    width: '100%',
-  },
+  btn: { width: '100%' },
 });

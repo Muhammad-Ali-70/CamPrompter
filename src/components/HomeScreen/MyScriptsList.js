@@ -1,64 +1,67 @@
 /**
  * MyScriptsList.js
- * Vertical list of scripts shown in the "My Scripts" section on HomeScreen.
+ * Vertical list of all scripts — live from Firestore.
  */
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { wp, hp } from '../../constants/responsive';
+import { colors } from '../../constants/colors';
 import ScriptListItem from './ScriptListItem';
 import SectionHeader from './SectionHeader';
-
-const MY_SCRIPTS = [
-  {
-    id: '1',
-    title: 'Q3 Financial Report',
-    date: 'Oct 24, 2023',
-    time: '12:30 PM',
-    duration: '10:45',
-  },
-  {
-    id: '2',
-    title: 'Marketing Strategy 2024',
-    date: 'Oct 22, 2023',
-    time: '09:15 AM',
-    duration: '05:20',
-  },
-  {
-    id: '3',
-    title: 'Client Welcome Video',
-    date: 'Oct 18, 2023',
-    time: '03:45 PM',
-    duration: '02:15',
-  },
-  {
-    id: '4',
-    title: 'Team Sync Agenda',
-    date: 'Oct 15, 2023',
-    time: '11:00 AM',
-    duration: '08:30',
-  },
-];
+import { Label } from '../../constants/globalstyle';
+import useScripts from '../../hooks/useScripts';
 
 const MyScriptsList = ({ onScriptPress }) => {
+  const { scripts, loading } = useScripts();
+
   return (
     <View style={styles.container}>
       <SectionHeader title="My Scripts" />
-      {MY_SCRIPTS.map(script => (
-        <ScriptListItem
-          key={script.id}
-          {...script}
-          onPress={() => onScriptPress && onScriptPress(script)}
-        />
-      ))}
+
+      {loading ? (
+        <ActivityIndicator color={colors.accent} style={styles.loader} />
+      ) : scripts.length === 0 ? (
+        <Label type="bodySmall" color="textSecondary" style={styles.empty}>
+          No scripts yet. Create your first one!
+        </Label>
+      ) : (
+        scripts.map(script => (
+          <ScriptListItem
+            key={script.id}
+            title={script.title}
+            date={formatDate(script.createdAt)}
+            time={formatTime(script.createdAt)}
+            duration={
+              script.wordCount ? `${Math.ceil(script.wordCount / 130)}:00` : ''
+            }
+            onPress={() => onScriptPress && onScriptPress(script)}
+          />
+        ))
+      )}
     </View>
   );
+};
+
+const formatDate = ts => {
+  if (!ts) return '';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+};
+
+const formatTime = ts => {
+  if (!ts) return '';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 };
 
 export default MyScriptsList;
 
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: wp(4),
-    marginBottom: hp(2),
-  },
+  container: { paddingHorizontal: wp(4), marginBottom: hp(2) },
+  loader: { marginTop: hp(2) },
+  empty: { marginTop: hp(1), textAlign: 'center' },
 });

@@ -10,9 +10,9 @@ import { wp, hp } from '../../constants/responsive';
 
 const STATUS_COLORS = {
   Ready: '#00C48C', // green
-  Draft: colors.primary, // orange
+  draft: colors.primary, // orange
   Review: '#FFD700', // yellow
-  Default: 'blue',
+  Default: '#f872ea',
 };
 
 const StatusTag = ({ status = 'Ready', style }) => {

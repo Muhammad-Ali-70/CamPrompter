@@ -12,7 +12,7 @@ const SplashScreen = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       navigation.replace('TabNavigator');
-    }, 2000);
+    }, 1000);
 
     return () => clearTimeout(timer);
   }, [navigation]);
