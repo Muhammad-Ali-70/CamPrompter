@@ -69,12 +69,12 @@ const ScriptEditorScreen = ({ route }) => {
     try {
       setSaving(true);
       let scriptId = existingScript?.id;
-      if (isEditing) {
-        await update(scriptId, { title, content, status: 'ready' });
-      } else {
-        const ref = await create({ title, content, status: 'ready' });
-        scriptId = ref.id;
-      }
+      // if (isEditing) {
+      //   await editScript(scriptId, { title, content, status: 'ready' });
+      // } else {
+      //   const ref = await addScript({ title, content, status: 'ready' });
+      //   scriptId = ref.id;
+      // }
       navigation.navigate('PrompterRecScreen', { scriptId, title, content });
     } catch (e) {
       Alert.alert('Error', 'Could not save. Please try again.');

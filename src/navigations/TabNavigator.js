@@ -15,6 +15,7 @@ import HomeStack from './HomeStack';
 import ScriptStack from './ScriptStack';
 import FolderStack from './FolderStack';
 import SettingsScreen from '../screens/Settings/SettingsScreen';
+import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 
 const Tab = createBottomTabNavigator();
 
@@ -43,13 +44,23 @@ const TabIcon = ({ name, focused }) => {
   );
 };
 
+const getTabBarStyle = route => {
+  const routeName = getFocusedRouteNameFromRoute(route) ?? 'HomeScreen';
+
+  if (routeName === 'PrompterRecScreen' || routeName === 'ScriptEditorScreen') {
+    return { display: 'none' };
+  }
+
+  return styles.tabBar;
+};
+
 const TabNavigator = () => {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarShowLabel: false,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: getTabBarStyle(route),
         tabBarIcon: ({ focused }) => (
           <TabIcon name={route.name} focused={focused} />
         ),

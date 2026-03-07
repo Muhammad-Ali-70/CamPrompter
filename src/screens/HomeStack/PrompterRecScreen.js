@@ -149,7 +149,6 @@ const PrompterRecScreen = () => {
         <CameraPreview
           scrollSpeed={scrollSpeed}
           onScrollSpeedChange={setScrollSpeed}
-          isMirrored={isMirrored}
           isFrontCamera={isFrontCamera}
         />
       </View>

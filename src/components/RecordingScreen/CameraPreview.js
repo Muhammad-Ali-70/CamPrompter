@@ -1,98 +1,58 @@
 /**
  * CameraPreview.js
- * Bottom half of the recording screen — shows the live camera feed.
- *
- * ─── Library Recommendations ────────────────────────────────────────────────
- *
- * OPTION A — react-native-vision-camera  ✅ RECOMMENDED
- *   The modern, performant camera library. Supports:
- *   - Live camera preview (front/back)
- *   - Video recording (.mp4)
- *   - Frame processors (for AI/ML, e.g. speech detection)
- *   - React Native 0.71+, Expo (with plugin)
- *
- *   Install:
- *     npm install react-native-vision-camera
- *     # iOS: cd ios && pod install
- *     # Add camera + microphone permissions to Info.plist / AndroidManifest.xml
- *
- *   Basic usage (shown below as TODO):
- *     import { Camera, useCameraDevice } from 'react-native-vision-camera'
- *     const device = useCameraDevice('front')
- *     <Camera device={device} isActive={true} style={StyleSheet.absoluteFill} />
- *
- * OPTION B — expo-camera  (if using Expo managed workflow)
- *   Simpler API, good for basic recording, less powerful than VisionCamera.
- *   npm install expo-camera
- *
- * ─────────────────────────────────────────────────────────────────────────────
- *
- * This file renders a PLACEHOLDER view (dark surface with "USER" label) so the
- * UI is complete and compilable today. Swap the <View style={styles.cameraBg}>
- * block for a real <Camera> component when the library is installed.
+ * Live camera feed using react-native-vision-camera.
+ * Defaults to front camera. Flips on isFrontCamera prop change.
  */
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Label } from '../../constants/globalstyle';
-import { colors } from '../../constants/colors';
-import { wp, hp } from '../../constants/responsive';
-
-// Speed slider shown above the camera (scroll speed control)
+import { View, StyleSheet, Text } from 'react-native';
+import {
+  Camera,
+  useCameraDevice,
+  useCameraPermission,
+  useMicrophonePermission,
+} from 'react-native-vision-camera';
 import ScrollSpeedSlider from './ScrollSpeedSlider';
-
-const MirroredBadge = () => (
-  <View style={styles.mirroredBadge}>
-    <Label
-      type="caption"
-      weight="bold"
-      color="textPrimary"
-      style={styles.mirroredText}
-    >
-      MIRRORED
-    </Label>
-  </View>
-);
-
-const UserBox = () => (
-  <View style={styles.userBox}>
-    <Label
-      type="bodySmall"
-      weight="bold"
-      color="textPrimary"
-      style={styles.userText}
-    >
-      USER
-    </Label>
-  </View>
-);
+import { colors } from '../../constants/colors';
 
 const CameraPreview = ({
   scrollSpeed,
   onScrollSpeedChange,
-  isMirrored = true,
+  isFrontCamera = true,
 }) => {
+  const { hasPermission: hasCam, requestPermission: requestCam } =
+    useCameraPermission();
+  const { hasPermission: hasMic, requestPermission: requestMic } =
+    useMicrophonePermission();
+
+  const device = useCameraDevice(isFrontCamera ? 'front' : 'back');
+
+  if (!hasCam || !hasMic) {
+    requestCam();
+    requestMic();
+    return (
+      <View style={styles.center}>
+        <Text style={styles.msg}>Requesting camera & microphone access...</Text>
+      </View>
+    );
+  }
+
+  if (!device) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.msg}>No camera found</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      {/*
-        ── SWAP THIS BLOCK when react-native-vision-camera is installed ──
-        import { Camera, useCameraDevice } from 'react-native-vision-camera'
-        const device = useCameraDevice('front')
-        <Camera
-          device={device}
-          isActive={true}
-          style={StyleSheet.absoluteFill}
-          isActive={isActive}
-          video={true}
-          audio={true}
-        />
-        ──────────────────────────────────────────────────────────────────
-      */}
-      <View style={styles.cameraBg}>
-        {isMirrored && <MirroredBadge />}
-        <UserBox />
-      </View>
-
-      {/* Scroll speed slider */}
+      <Camera
+        style={StyleSheet.absoluteFill}
+        device={device}
+        isActive={true}
+        video={true}
+        audio={true}
+      />
       <ScrollSpeedSlider value={scrollSpeed} onChange={onScrollSpeedChange} />
     </View>
   );
@@ -103,33 +63,18 @@ export default CameraPreview;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0D1826',
+    backgroundColor: '#000',
   },
-  cameraBg: {
+  center: {
     flex: 1,
-    backgroundColor: '#1A2535',
+    backgroundColor: colors.backgroundSecondary,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  mirroredBadge: {
-    position: 'absolute',
-    top: hp(1.5),
-    right: wp(4),
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 6,
-    paddingHorizontal: wp(3),
-    paddingVertical: hp(0.5),
-  },
-  mirroredText: {
-    letterSpacing: 1.5,
-  },
-  userBox: {
-    borderWidth: 1,
-    borderColor: colors.textSecondary,
-    paddingHorizontal: wp(6),
-    paddingVertical: hp(1.5),
-  },
-  userText: {
-    letterSpacing: 2,
+  msg: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    textAlign: 'center',
+    paddingHorizontal: 24,
   },
 });

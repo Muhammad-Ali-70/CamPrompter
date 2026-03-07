@@ -8,7 +8,7 @@ import RecentScriptsList from '../../components/HomeScreen/RecentScriptsList';
 import FAB from '../../components/Buttons/FAB';
 import PrimaryButton from '../../components/Buttons/PrimaryButton';
 import MyScriptsList from '../../components/HomeScreen/MyScriptsList';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { CirclePlus } from 'lucide-react-native';
 import useScripts from '../../hooks/useScripts';
 
@@ -24,12 +24,6 @@ const HomeScreen = () => {
     setRefreshing(false);
   }, [fetchScripts]);
 
-  useFocusEffect(
-    useCallback(() => {
-      onRefresh();
-    }, [onRefresh]),
-  );
-
   const handleSearch = () => {
     console.log('Search pressed');
   };
@@ -40,7 +34,7 @@ const HomeScreen = () => {
   };
 
   const handleScriptPress = script => {
-    console.log('Script pressed:', script.title);
+    navigation.navigate('ScriptEditorScreen', { script });
   };
 
   return (
