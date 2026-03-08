@@ -1,9 +1,15 @@
 /**
  * CameraPreview.js
- * Live camera feed using react-native-vision-camera.
- * Defaults to front camera. Flips on isFrontCamera prop change.
+ *
+ * Live camera feed. Exposes startRecording / stopRecording via forwardRef.
+ * The parent screen (PrompterRecScreen) drives all recording logic.
  */
-import React from 'react';
+import React, {
+  useRef,
+  useImperativeHandle,
+  forwardRef,
+  useEffect,
+} from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import {
   Camera,
@@ -14,57 +20,70 @@ import {
 import ScrollSpeedSlider from './ScrollSpeedSlider';
 import { colors } from '../../constants/colors';
 
-const CameraPreview = ({
-  scrollSpeed,
-  onScrollSpeedChange,
-  isFrontCamera = true,
-}) => {
-  const { hasPermission: hasCam, requestPermission: requestCam } =
-    useCameraPermission();
-  const { hasPermission: hasMic, requestPermission: requestMic } =
-    useMicrophonePermission();
+const CameraPreview = forwardRef(
+  ({ scrollSpeed, onScrollSpeedChange, isFrontCamera = true }, ref) => {
+    const { hasPermission: hasCam, requestPermission: requestCam } =
+      useCameraPermission();
+    const { hasPermission: hasMic, requestPermission: requestMic } =
+      useMicrophonePermission();
 
-  const device = useCameraDevice(isFrontCamera ? 'front' : 'back');
+    const cameraRef = useRef(null);
+    const device = useCameraDevice(isFrontCamera ? 'front' : 'back');
 
-  if (!hasCam || !hasMic) {
-    requestCam();
-    requestMic();
+    useEffect(() => {
+      if (!hasCam) requestCam();
+      if (!hasMic) requestMic();
+    }, [hasCam, hasMic]);
+
+    // ── Imperative handle ──────────────────────────────────────────────────
+    useImperativeHandle(ref, () => ({
+      startRecording: ({ onRecordingFinished, onRecordingError }) => {
+        cameraRef.current?.startRecording({
+          onRecordingFinished,
+          onRecordingError,
+        });
+      },
+      stopRecording: () => {
+        cameraRef.current?.stopRecording();
+      },
+    }));
+
+    if (!hasCam || !hasMic) {
+      return (
+        <View style={styles.center}>
+          <Text style={styles.msg}>Requesting camera & microphone access…</Text>
+        </View>
+      );
+    }
+
+    if (!device) {
+      return (
+        <View style={styles.center}>
+          <Text style={styles.msg}>No camera found</Text>
+        </View>
+      );
+    }
+
     return (
-      <View style={styles.center}>
-        <Text style={styles.msg}>Requesting camera & microphone access...</Text>
+      <View style={styles.container}>
+        <Camera
+          ref={cameraRef}
+          style={StyleSheet.absoluteFill}
+          device={device}
+          isActive={true}
+          video={true}
+          audio={false}
+        />
+        <ScrollSpeedSlider value={scrollSpeed} onChange={onScrollSpeedChange} />
       </View>
     );
-  }
-
-  if (!device) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.msg}>No camera found</Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.container}>
-      <Camera
-        style={StyleSheet.absoluteFill}
-        device={device}
-        isActive={true}
-        video={true}
-        audio={true}
-      />
-      <ScrollSpeedSlider value={scrollSpeed} onChange={onScrollSpeedChange} />
-    </View>
-  );
-};
+  },
+);
 
 export default CameraPreview;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
+  container: { flex: 1, backgroundColor: '#000' },
   center: {
     flex: 1,
     backgroundColor: colors.backgroundSecondary,

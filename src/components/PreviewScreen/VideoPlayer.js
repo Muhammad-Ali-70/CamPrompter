@@ -1,72 +1,55 @@
 /**
  * VideoPlayer.js
- * Video preview player component.
  *
- * Shows a video thumbnail with a centered play/pause overlay button
- * and a bottom-aligned progress bar with current/total time labels.
+ * Full video playback using react-native-video.
+ * Accepts a ref forwarded from VideoPreviewScreen so the parent
+ * can call videoRef.current.seek(seconds).
  *
- * ─── Library Recommendation ──────────────────────────────────────────────────
- * react-native-video  (most widely used, supports local + remote URIs)
- *   npm install react-native-video
- *   docs: https://github.com/TheWidlarzGroup/react-native-video
- *
- * Swap the <View style={styles.videoPlaceholder}> block with:
- *   import Video from 'react-native-video'
- *   <Video
- *     ref={videoRef}
- *     source={{ uri: videoUri }}
- *     style={StyleSheet.absoluteFill}
- *     resizeMode="cover"
- *     paused={!isPlaying}
- *     onProgress={({ currentTime }) => setCurrentTime(currentTime)}
- *     onLoad={({ duration }) => setDuration(duration)}
- *     onEnd={() => setIsPlaying(false)}
- *   />
- * ─────────────────────────────────────────────────────────────────────────────
- *
- * Props:
- *  videoUri   — local file URI from recording (passed via navigation params)
- *  isPlaying  — controlled externally from VideoPreviewScreen
- *  onTogglePlay
- *  currentTime — seconds (number)
- *  duration    — seconds (number)
- *  onSeek      — (value: number) => void
+ * npm install react-native-video
  */
-import React from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { forwardRef, useState, useCallback } from 'react';
+import {
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  PanResponder,
+  GestureResponderEvent,
+} from 'react-native';
+import Video from 'react-native-video';
 import { Play, Pause } from 'lucide-react-native';
 import { borderRadiusPrimary, Label } from '../../constants/globalstyle';
 import { colors } from '../../constants/colors';
 import { wp, hp } from '../../constants/responsive';
 import { RFValue } from 'react-native-responsive-fontsize';
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 const formatTime = (secs = 0) => {
   const m = Math.floor(secs / 60);
   const s = Math.floor(secs % 60);
   return `${m}:${String(s).padStart(2, '0')}`;
 };
 
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-const PlayPauseOverlay = ({ isPlaying, onPress }) => (
-  <TouchableOpacity
-    style={styles.playOverlay}
-    onPress={onPress}
-    activeOpacity={0.85}
-  >
-    <View style={styles.playCircle}>
-      {isPlaying ? (
-        <Pause size={RFValue(26)} color="#fff" strokeWidth={2.5} fill="#fff" />
-      ) : (
-        <Play size={RFValue(26)} color="#fff" strokeWidth={2.5} fill="#fff" />
-      )}
-    </View>
-  </TouchableOpacity>
-);
+// ── Progress bar (tap to seek) ────────────────────────────────────────────────
 
 const VideoProgressBar = ({ currentTime = 0, duration = 1, onSeek }) => {
   const progress = duration > 0 ? Math.min(currentTime / duration, 1) : 0;
+  const trackRef = React.useRef(null);
+  const trackWidthRef = React.useRef(0);
+
+  const seekFromX = useCallback(
+    pageX => {
+      if (!trackRef.current || trackWidthRef.current === 0) return;
+      trackRef.current.measure((_fx, _fy, _w, _h, px) => {
+        const ratio = Math.max(
+          0,
+          Math.min(1, (pageX - px) / trackWidthRef.current),
+        );
+        onSeek?.(ratio);
+      });
+    },
+    [onSeek],
+  );
 
   return (
     <View style={styles.progressContainer}>
@@ -79,10 +62,17 @@ const VideoProgressBar = ({ currentTime = 0, duration = 1, onSeek }) => {
         {formatTime(currentTime)}
       </Label>
 
-      {/* Track */}
-      <View style={styles.track}>
+      <View
+        ref={trackRef}
+        style={styles.track}
+        onLayout={e => {
+          trackWidthRef.current = e.nativeEvent.layout.width;
+        }}
+        onStartShouldSetResponder={() => true}
+        onResponderGrant={e => seekFromX(e.nativeEvent.pageX)}
+        onResponderMove={e => seekFromX(e.nativeEvent.pageX)}
+      >
         <View style={[styles.trackFill, { width: `${progress * 100}%` }]} />
-        {/* Thumb */}
         <View style={[styles.thumb, { left: `${progress * 100}%` }]} />
       </View>
 
@@ -100,36 +90,79 @@ const VideoProgressBar = ({ currentTime = 0, duration = 1, onSeek }) => {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-const VideoPlayer = ({
-  videoUri,
-  isPlaying = false,
-  onTogglePlay,
-  currentTime = 0,
-  duration = 154, // 2:34 default for UI
-  onSeek,
-}) => {
-  return (
-    <View style={styles.container}>
-      {/*
-        ── Swap this block with <Video ... /> when react-native-video is installed ──
-      */}
-      <View style={styles.videoPlaceholder} />
+const VideoPlayer = forwardRef(
+  (
+    {
+      videoUri,
+      isPlaying = false,
+      onTogglePlay,
+      onProgress,
+      onLoad,
+      onEnd,
+      currentTime = 0,
+      duration = 0,
+      onSeek,
+    },
+    ref,
+  ) => {
+    return (
+      <View style={styles.container}>
+        {videoUri ? (
+          <Video
+            ref={ref}
+            source={{ uri: videoUri }}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+            paused={!isPlaying}
+            onProgress={onProgress}
+            onLoad={onLoad}
+            onEnd={onEnd}
+            repeat={false}
+          />
+        ) : (
+          // No video yet — dark placeholder
+          <View style={styles.placeholder} />
+        )}
 
-      {/* Play / Pause overlay */}
-      <PlayPauseOverlay isPlaying={isPlaying} onPress={onTogglePlay} />
+        {/* Tap anywhere on video to play/pause */}
+        <TouchableOpacity
+          style={styles.playOverlay}
+          onPress={onTogglePlay}
+          activeOpacity={0.85}
+        >
+          <View style={styles.playCircle}>
+            {isPlaying ? (
+              <Pause
+                size={RFValue(26)}
+                color="#fff"
+                strokeWidth={2.5}
+                fill="#fff"
+              />
+            ) : (
+              <Play
+                size={RFValue(26)}
+                color="#fff"
+                strokeWidth={2.5}
+                fill="#fff"
+              />
+            )}
+          </View>
+        </TouchableOpacity>
 
-      {/* Progress bar pinned to bottom of video */}
-      <View style={styles.progressWrapper}>
-        <VideoProgressBar
-          currentTime={currentTime}
-          duration={duration}
-          onSeek={onSeek}
-        />
+        {/* Progress bar pinned to bottom */}
+        <View style={styles.progressWrapper}>
+          <VideoProgressBar
+            currentTime={currentTime}
+            duration={duration}
+            onSeek={onSeek}
+          />
+        </View>
       </View>
-    </View>
-  );
-};
+    );
+  },
+);
 
+VideoPlayer.displayName = 'VideoPlayer';
 export default VideoPlayer;
 
 const styles = StyleSheet.create({
@@ -140,7 +173,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#1A1A1A',
   },
-  videoPlaceholder: {
+  placeholder: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#2A2A2A',
   },
@@ -156,8 +189,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
-    // nudge play icon slightly right for optical centering
-    paddingLeft: 3,
+    paddingLeft: 3, // optical centering for play icon
   },
   progressWrapper: {
     position: 'absolute',
@@ -165,6 +197,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingBottom: hp(1.5),
+    // Subtle gradient feel via semi-transparent background
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    paddingTop: hp(1),
   },
   progressContainer: {
     flexDirection: 'row',
@@ -180,7 +215,6 @@ const styles = StyleSheet.create({
     height: 3,
     backgroundColor: 'rgba(255,255,255,0.3)',
     borderRadius: 2,
-    position: 'relative',
     justifyContent: 'center',
   },
   trackFill: {
@@ -190,12 +224,12 @@ const styles = StyleSheet.create({
   },
   thumb: {
     position: 'absolute',
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: colors.textPrimary,
     top: '50%',
-    marginTop: -5,
-    marginLeft: -5,
+    marginTop: -6,
+    marginLeft: -6,
   },
 });

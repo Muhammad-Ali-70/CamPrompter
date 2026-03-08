@@ -1,20 +1,16 @@
 /**
  * PreviewActionButtons.js
- * Bottom CTA buttons on the video preview screen.
  *
- *  Row 1: "Save to Gallery"  (full-width, solid blue)
- *  Row 2: "Redo" (half) + "Share" (half)  — secondary outlined style
+ * Action buttons on the video preview screen.
  *
- * Reuses PrimaryButton with appropriate variants and Lucide icons.
+ *  Row 1: "Save to Gallery"  — full-width solid, shows loading while saving
+ *  Row 2: "Redo" + "Share"   — half-width secondary
  *
- * ─── Library for Save / Share ────────────────────────────────────────────────
- *  Save to Gallery → react-native-cameraroll  or  expo-media-library
- *    npm install @react-native-camera-roll/camera-roll
- *
- *  Share           → React Native built-in Share API (no install needed)
- *    import { Share } from 'react-native'
- *    Share.share({ url: videoUri, message: 'Check out my video!' })
- * ─────────────────────────────────────────────────────────────────────────────
+ * Props:
+ *   onSave    — async handler, triggers CameraRoll.save in parent
+ *   onRedo    — navigates back to recording screen
+ *   onShare   — opens native Share sheet
+ *   isSaving  — boolean, disables Save button and shows loading label
  */
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
@@ -22,19 +18,25 @@ import { Download, RotateCcw, Share2 } from 'lucide-react-native';
 import { hp, wp } from '../../constants/responsive';
 import PrimaryButton from '../Buttons/PrimaryButton';
 
-const PreviewActionButtons = ({ onSave, onRedo, onShare }) => {
+const PreviewActionButtons = ({
+  onSave,
+  onRedo,
+  onShare,
+  isSaving = false,
+}) => {
   return (
     <View style={styles.container}>
-      {/* Save to Gallery — full width solid */}
+      {/* Save to Gallery — full width */}
       <PrimaryButton
-        label="Save to Gallery"
+        label={isSaving ? 'Saving…' : 'Save to Gallery'}
         LucideIcon={Download}
         variant="solid"
         onPress={onSave}
+        disabled={isSaving}
         style={styles.fullWidth}
       />
 
-      {/* Redo + Share — side by side secondary */}
+      {/* Redo + Share — side by side */}
       <View style={styles.row}>
         <PrimaryButton
           label="Redo"

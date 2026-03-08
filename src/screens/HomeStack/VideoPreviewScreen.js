@@ -1,22 +1,30 @@
 /**
  * VideoPreviewScreen.js
  *
- * Shown after a recording is completed.
- * Lets the user review, save, redo, or share their take.
+ * Full-featured video preview screen.
+ * Uses react-native-video for playback and @react-native-camera-roll/camera-roll for saving.
  *
- * ─── Navigation params expected ──────────────────────────────────────────────
- *  videoUri  — local file URI of the recorded video
- *  duration  — total duration in seconds
- * ─────────────────────────────────────────────────────────────────────────────
+ * Install dependencies:
+ *   npm install react-native-video
+ *   npm install @react-native-camera-roll/camera-roll
  *
- * ─── State ───────────────────────────────────────────────────────────────────
- *  isPlaying    → VideoPlayer play/pause toggle
- *  currentTime  → advances via react-native-video onProgress callback
- * ─────────────────────────────────────────────────────────────────────────────
+ * Android permissions needed in AndroidManifest.xml:
+ *   <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
+ *   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+ *     android:maxSdkVersion="28"/>
  */
-import React, { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Share, Alert } from 'react-native';
+import React, { useState, useCallback, useRef } from 'react';
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  Share,
+  Alert,
+  Platform,
+  PermissionsAndroid,
+} from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { CameraRoll } from '@react-native-camera-roll/camera-roll';
 
 import { colors } from '../../constants/colors';
 import { wp, hp } from '../../constants/responsive';
@@ -25,44 +33,104 @@ import VideoPlayer from '../../components/PreviewScreen/VideoPlayer';
 import RecordingCompleteInfo from '../../components/PreviewScreen/RecordingCompleteInfo';
 import PreviewActionButtons from '../../components/PreviewScreen/PreviewActionButtons';
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const requestAndroidStoragePermission = async () => {
+  if (Platform.OS !== 'android') return true;
+  // Android 13+ uses READ_MEDIA_VIDEO, below uses WRITE_EXTERNAL_STORAGE
+  const permission =
+    Platform.Version >= 33
+      ? PermissionsAndroid.PERMISSIONS.READ_MEDIA_VIDEO
+      : PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE;
+  const result = await PermissionsAndroid.request(permission, {
+    title: 'Storage Permission',
+    message: 'Needed to save video to gallery',
+    buttonPositive: 'OK',
+  });
+  return result === PermissionsAndroid.RESULTS.GRANTED;
+};
+
+// ── Screen ────────────────────────────────────────────────────────────────────
+
 const VideoPreviewScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
 
   const videoUri = route?.params?.videoUri ?? null;
-  const duration = route?.params?.duration ?? 154; // fallback 2:34
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // ── Handlers ────────────────────────────────────────────────────────────────
+  const videoRef = useRef(null);
+
+  // ── Playback handlers ──────────────────────────────────────────────────────
+
   const handleTogglePlay = useCallback(() => {
     setIsPlaying(prev => !prev);
   }, []);
 
+  const handleProgress = useCallback(({ currentTime: ct }) => {
+    setCurrentTime(ct);
+  }, []);
+
+  const handleLoad = useCallback(({ duration: d }) => {
+    setDuration(d);
+  }, []);
+
+  const handleEnd = useCallback(() => {
+    setIsPlaying(false);
+    setCurrentTime(0);
+    videoRef.current?.seek(0);
+  }, []);
+
+  const handleSeek = useCallback(
+    ratio => {
+      const seekTo = ratio * duration;
+      setCurrentTime(seekTo);
+      videoRef.current?.seek(seekTo);
+    },
+    [duration],
+  );
+
+  // ── Action handlers ────────────────────────────────────────────────────────
+
   const handleDone = useCallback(() => {
-    navigation.popToTop(); // go back to Home
+    navigation.popToTop();
   }, [navigation]);
 
-  const handleSaveToGallery = useCallback(() => {
-    /**
-     * TODO: save to device gallery
-     * import { CameraRoll } from '@react-native-camera-roll/camera-roll'
-     * await CameraRoll.save(videoUri, { type: 'video' })
-     */
-    Alert.alert('Saved', 'Video saved to gallery.');
+  const handleSaveToGallery = useCallback(async () => {
+    if (!videoUri) {
+      Alert.alert('No video', 'Nothing to save yet.');
+      return;
+    }
+    const hasPermission = await requestAndroidStoragePermission();
+    if (!hasPermission) {
+      Alert.alert(
+        'Permission denied',
+        'Storage permission is required to save videos.',
+      );
+      return;
+    }
+    try {
+      setIsSaving(true);
+      await CameraRoll.save(videoUri, { type: 'video' });
+      Alert.alert('Saved ✓', 'Video saved to your gallery.');
+    } catch (e) {
+      console.error('Save error:', e);
+      Alert.alert('Save failed', e?.message ?? 'Could not save the video.');
+    } finally {
+      setIsSaving(false);
+    }
   }, [videoUri]);
 
   const handleRedo = useCallback(() => {
-    navigation.goBack(); // return to TeleprompterRecordingScreen
+    navigation.goBack();
   }, [navigation]);
 
   const handleShare = useCallback(async () => {
     try {
-      /**
-       * Native Share sheet — no extra library needed.
-       * When videoUri is available, pass it as `url`.
-       */
       await Share.share({
         message: 'Check out my recording!',
         ...(videoUri && { url: videoUri }),
@@ -72,21 +140,10 @@ const VideoPreviewScreen = () => {
     }
   }, [videoUri]);
 
-  const handleSeek = useCallback(
-    value => {
-      setCurrentTime(value * duration);
-      /**
-       * TODO: seek video to position
-       * videoRef.current.seek(value * duration)
-       */
-    },
-    [duration],
-  );
+  // ── Render ─────────────────────────────────────────────────────────────────
 
-  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <View style={styles.safeArea}>
-      {/* Header: ← Preview  Done */}
       <ScreenHeader
         title="Preview"
         onBack={() => navigation.goBack()}
@@ -99,26 +156,28 @@ const VideoPreviewScreen = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Video player */}
         <VideoPlayer
+          ref={videoRef}
           videoUri={videoUri}
           isPlaying={isPlaying}
           onTogglePlay={handleTogglePlay}
+          onProgress={handleProgress}
+          onLoad={handleLoad}
+          onEnd={handleEnd}
           currentTime={currentTime}
           duration={duration}
           onSeek={handleSeek}
         />
 
-        {/* "Recording Complete" info block */}
         <View style={styles.infoBlock}>
-          <RecordingCompleteInfo />
+          <RecordingCompleteInfo duration={duration} />
         </View>
 
-        {/* Action buttons */}
         <PreviewActionButtons
           onSave={handleSaveToGallery}
           onRedo={handleRedo}
           onShare={handleShare}
+          isSaving={isSaving}
         />
       </ScrollView>
     </View>
@@ -132,14 +191,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.backgroundPrimary,
   },
-  scroll: {
-    flex: 1,
-  },
+  scroll: { flex: 1 },
   scrollContent: {
     paddingHorizontal: wp(4),
     paddingTop: hp(2),
     paddingBottom: hp(4),
-    gap: hp(0), // spacing handled by individual components
   },
   infoBlock: {
     marginTop: hp(3),

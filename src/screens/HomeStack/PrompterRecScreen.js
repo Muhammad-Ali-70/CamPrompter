@@ -1,52 +1,50 @@
 /**
- * TeleprompterRecordingScreen.js
+ * PrompterRecScreen.js
  *
- * Full-screen recording experience. Split into two halves:
- *   TOP (55%): TeleprompterView — scrolling script with word highlights
- *   BOTTOM (45%): CameraPreview — live camera feed (placeholder until VisionCamera installed)
+ * The orchestrator. Wires together:
+ *   1. VisionCamera recording  (via cameraRef → CameraPreview)
+ *   2. Speech recognition      (via useSpeechRecognition)
+ *   3. Word matching           (via useWordMatcher)
+ *   4. Teleprompter scroll     (via teleprompterRef → TeleprompterView)
  *
- * Overlay (absolute):
- *   - RecordingHeader (top: X / timer / settings)
- *   - RecordingControls (bottom: flip / record / script)
+ * ── Data flow ────────────────────────────────────────────────────────────────
  *
- * ─── State managed here ──────────────────────────────────────────────────────
- *  isRecording    → toggled by the record button
- *  elapsed        → timer string "MM:SS", driven by setInterval
- *  highlightIndex → which script word is "active" (advanced by speech engine later)
- *  scrollSpeed    → 0–1 float for teleprompter speed
- *  isMirrored     → camera mirror toggle
+ *  User speaks
+ *    → useSpeechRecognition fires onPartialResult(text)
+ *      → useWordMatcher.updateTranscript(text) returns highlightIndex
+ *        → passed as prop to TeleprompterView
+ *          → TeleprompterView calls scrollToWord(highlightIndex)
  *
- * ─── Libraries to install for full functionality ─────────────────────────────
+ * ── Recording modes ──────────────────────────────────────────────────────────
  *
- *  1. CAMERA & VIDEO RECORDING
- *     react-native-vision-camera  (v4)
- *     npm install react-native-vision-camera
- *     docs: https://react-native-vision-camera.com
- *     → Swap placeholder in CameraPreview.js
+ *  SPEECH-TRACKING MODE (default when recording):
+ *    - Speech recognition runs in parallel with video recording.
+ *    - Teleprompter scrolls to track the spoken word.
+ *    - Speed slider is hidden (scroll is driven by speech, not speed).
  *
- *  2. SPEECH RECOGNITION (word highlighting)
- *     @react-native-voice/voice
- *     npm install @react-native-voice/voice
- *     → Feed Voice.onSpeechPartialResults into highlightIndex state here
- *     → Use a fuzzy match against tokenised script words
+ *  SPEED-BASED MODE (fallback — when speech is unavailable or user prefers):
+ *    - Teleprompter auto-scrolls at a fixed speed set by the slider.
+ *    - No speech recognition.
+ *    - Toggle via the settings button (TODO: settings modal).
  *
- *  3. SCROLL SPEED SLIDER
- *     @react-native-community/slider
- *     npm install @react-native-community/slider
- *     → Swap placeholder in ScrollSpeedSlider.js
- *
- *  4. PERMISSIONS (camera, microphone, speech)
- *     react-native-permissions
- *     npm install react-native-permissions
- *     → Request CAMERA, MICROPHONE, SPEECH_RECOGNITION on mount
- *
- *  5. AUTO-SCROLL (no library needed)
- *     Use a ref on TeleprompterView's ScrollView + setInterval
- *     scrollViewRef.current.scrollTo({ y: position, animated: true })
- * ─────────────────────────────────────────────────────────────────────────────
+ * Currently defaults to SPEECH-TRACKING MODE.
+ * Set `USE_SPEECH_TRACKING = false` to use speed-based mode instead.
  */
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, StyleSheet, StatusBar } from 'react-native';
+
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from 'react';
+import {
+  View,
+  StyleSheet,
+  StatusBar,
+  Platform,
+  PermissionsAndroid,
+} from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { colors } from '../../constants/colors';
@@ -55,105 +53,207 @@ import CameraPreview from '../../components/RecordingScreen/CameraPreview';
 import RecordingHeader from '../../components/RecordingScreen/RecordingHeader';
 import RecordingControls from '../../components/RecordingScreen/RecordingControls';
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+import useSpeechRecognition from '../../hooks/useSpeechRecognition';
+import useWordMatcher from '../../hooks/useWordMatcher';
+
+const USE_SPEECH_TRACKING = true; // set false to use speed-based scroll only
+
 const formatElapsed = seconds => {
   const m = String(Math.floor(seconds / 60)).padStart(2, '0');
   const s = String(seconds % 60).padStart(2, '0');
   return `${m}:${s}`;
 };
 
-// ── Screen ───────────────────────────────────────────────────────────────────
+const requestAndroidMicPermission = async () => {
+  if (Platform.OS !== 'android') return true;
+  try {
+    const result = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+      {
+        title: 'Microphone Permission',
+        message: 'Needed for speech-to-text word tracking',
+        buttonPositive: 'OK',
+      },
+    );
+    return result === PermissionsAndroid.RESULTS.GRANTED;
+  } catch {
+    return false;
+  }
+};
+
+// ── Screen ────────────────────────────────────────────────────────────────────
 const PrompterRecScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
 
-  // Script text passed from ScriptEditorScreen via navigation params
   const script =
     route?.params?.script ??
     'Welcome to the teleprompter app. This is where your script will scroll. Look directly at the camera lens to maintain eye contact with your audience.';
 
-  // ── State ─────────────────────────────────────────────────────────────────
+  // ── UI state ───────────────────────────────────────────────────────────────
   const [isRecording, setIsRecording] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [highlightIndex, setHighlightIndex] = useState(0);
   const [scrollSpeed, setScrollSpeed] = useState(0.3);
-  const [isMirrored, setIsMirrored] = useState(true);
   const [isFrontCamera, setIsFrontCamera] = useState(true);
 
+  // ── Refs ───────────────────────────────────────────────────────────────────
+  const cameraRef = useRef(null);
+  const teleprompterRef = useRef(null);
   const timerRef = useRef(null);
 
-  // ── Timer logic ───────────────────────────────────────────────────────────
+  // ── Word matching ──────────────────────────────────────────────────────────
+  const {
+    highlightIndex,
+    updateTranscript,
+    reset: resetMatcher,
+  } = useWordMatcher(script);
+
+  // ── Speech recognition ────────────────────────────────────────────────────
+  const handlePartialResult = useCallback(
+    text => {
+      if (USE_SPEECH_TRACKING) updateTranscript(text);
+    },
+    [updateTranscript],
+  );
+
+  const handleFinalResult = useCallback(
+    text => {
+      if (USE_SPEECH_TRACKING) updateTranscript(text);
+    },
+    [updateTranscript],
+  );
+
+  const { startSpeech, stopSpeech } = useSpeechRecognition({
+    onPartialResult: handlePartialResult,
+    onFinalResult: handleFinalResult,
+    lang: 'en-US',
+  });
+
+  // ── Timer ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (isRecording) {
-      timerRef.current = setInterval(() => {
-        setElapsedSeconds(prev => prev + 1);
-      }, 1000);
+      timerRef.current = setInterval(() => setElapsedSeconds(s => s + 1), 1000);
     } else {
       clearInterval(timerRef.current);
     }
     return () => clearInterval(timerRef.current);
   }, [isRecording]);
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
-  const handleRecord = useCallback(() => {
+  // ── Record / Stop ──────────────────────────────────────────────────────────
+  const handleRecord = useCallback(async () => {
     if (isRecording) {
-      // TODO: call cameraRef.current.stopRecording() from VisionCamera
+      // ── STOP ──────────────────────────────────────────────────────────────
+      cameraRef.current?.stopRecording(); // triggers onRecordingFinished
+      teleprompterRef.current?.stopAutoScroll();
+      if (USE_SPEECH_TRACKING) await stopSpeech();
       setIsRecording(false);
     } else {
+      // ── START ─────────────────────────────────────────────────────────────
       setElapsedSeconds(0);
-      setHighlightIndex(0);
-      // TODO: call cameraRef.current.startRecording({ ... }) from VisionCamera
-      // TODO: start Voice recognition from @react-native-voice/voice
+      resetMatcher();
+      teleprompterRef.current?.resetScroll();
+
+      // Request Android mic permission for speech recognition
+      if (USE_SPEECH_TRACKING) await requestAndroidMicPermission();
+
+      // Start video recording
+      cameraRef.current?.startRecording({
+        onRecordingFinished: video => {
+          navigation.navigate('VideoPreviewScreen', { videoUri: video.path });
+        },
+        onRecordingError: err => {
+          console.error('[Camera] recording error:', err);
+          setIsRecording(false);
+          teleprompterRef.current?.stopAutoScroll();
+        },
+      });
+
+      if (USE_SPEECH_TRACKING) {
+        // Start speech in parallel — slight delay for camera init
+        setTimeout(() => startSpeech(), 20);
+      } else {
+        // Speed-based mode: start timed auto-scroll
+        setTimeout(
+          () => teleprompterRef.current?.startAutoScroll(scrollSpeed),
+          1,
+        );
+      }
+
       setIsRecording(true);
     }
-  }, [isRecording]);
+  }, [
+    isRecording,
+    scrollSpeed,
+    navigation,
+    startSpeech,
+    stopSpeech,
+    resetMatcher,
+  ]);
 
-  const handleFlipCamera = useCallback(() => {
-    setIsFrontCamera(prev => !prev);
-  }, []);
+  // ── Other handlers ─────────────────────────────────────────────────────────
+  const handleFlipCamera = useCallback(() => setIsFrontCamera(p => !p), []);
 
   const handleClose = useCallback(() => {
     if (isRecording) {
-      // TODO: stop recording before leaving
+      cameraRef.current?.stopRecording();
+      teleprompterRef.current?.stopAutoScroll();
+      stopSpeech();
       setIsRecording(false);
     }
     navigation.goBack();
-  }, [isRecording, navigation]);
+  }, [isRecording, navigation, stopSpeech]);
 
   const handleSettings = useCallback(() => {
-    // TODO: open recording settings modal (font size, speed, mirror, etc.)
-    console.log('Recording settings');
-  }, []);
-
-  const handleScript = useCallback(() => {
-    // TODO: open script picker / editor overlay
-    console.log('Script toggle');
+    // TODO: open settings modal (font size, speech on/off, speed, mirror)
   }, []);
 
   const handleDone = useCallback(() => {
-    navigation.navigate('VideoPreviewScreen');
-  }, []);
+    if (isRecording) {
+      cameraRef.current?.stopRecording(); // will navigate via onRecordingFinished
+      teleprompterRef.current?.stopAutoScroll();
+      stopSpeech();
+      setIsRecording(false);
+    } else {
+      navigation.navigate('VideoPreviewScreen');
+    }
+  }, [isRecording, navigation, stopSpeech]);
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  const handleScrollSpeedChange = useCallback(
+    newSpeed => {
+      setScrollSpeed(newSpeed);
+      // Only relevant in speed-based mode
+      if (!USE_SPEECH_TRACKING && isRecording) {
+        teleprompterRef.current?.setSpeed(newSpeed);
+      }
+    },
+    [isRecording],
+  );
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <View style={styles.screen}>
       <StatusBar hidden />
 
-      {/* TOP: Teleprompter script */}
+      {/* TOP 55% — Teleprompter */}
       <View style={styles.teleprompterSection}>
-        <TeleprompterView script={script} highlightIndex={highlightIndex} />
+        <TeleprompterView
+          ref={teleprompterRef}
+          script={script}
+          highlightIndex={highlightIndex}
+        />
       </View>
 
-      {/* BOTTOM: Camera preview */}
+      {/* BOTTOM 45% — Camera */}
       <View style={styles.cameraSection}>
         <CameraPreview
+          ref={cameraRef}
           scrollSpeed={scrollSpeed}
-          onScrollSpeedChange={setScrollSpeed}
+          onScrollSpeedChange={handleScrollSpeedChange}
           isFrontCamera={isFrontCamera}
         />
       </View>
 
-      {/* OVERLAY: Header (absolute top) */}
+      {/* OVERLAY — Header */}
       <RecordingHeader
         elapsed={formatElapsed(elapsedSeconds)}
         isRecording={isRecording}
@@ -161,13 +261,13 @@ const PrompterRecScreen = () => {
         onSettings={handleSettings}
       />
 
-      {/* OVERLAY: Controls (absolute bottom) */}
+      {/* OVERLAY — Controls */}
       <View style={styles.controlsOverlay}>
         <RecordingControls
           isRecording={isRecording}
           onRecord={handleRecord}
           onFlipCamera={handleFlipCamera}
-          onScript={handleScript}
+          onScript={() => {}}
           onDone={handleDone}
         />
       </View>
@@ -182,12 +282,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.backgroundPrimary,
   },
-  teleprompterSection: {
-    flex: 50, // 55% of screen height
-  },
-  cameraSection: {
-    flex: 45, // 45% of screen height
-  },
+  teleprompterSection: { flex: 40 },
+  cameraSection: { flex: 45 },
   controlsOverlay: {
     position: 'absolute',
     bottom: 0,
